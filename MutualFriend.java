@@ -11,10 +11,7 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Created by xiezebin on 2/5/16.
@@ -22,7 +19,7 @@ import java.util.TreeMap;
 public class MutualFriend
 {
     private final static String sTargetUIDKey = "PARAMETER";
-    private final static String sIsFriend = "-1";
+    private final static String IS_FRIEND = "-1";
 
     // custom Pair, not comparable
     private static class CandidateFriend implements Writable
@@ -72,14 +69,21 @@ public class MutualFriend
     public static class Map
             extends Mapper<LongWritable, Text, Text, CandidateFriend>
     {
-        private Text obKeyOut = new Text();
+        Set<String> obTargetUIDSet;
+        Text obKeyOut;
 
         public void map(LongWritable key, Text value, Context context
         ) throws IOException, InterruptedException
         {
             // the target user to whom we recommend friends
-            String loTargetUID = context.getConfiguration().get(sTargetUIDKey);
-            obKeyOut.set(loTargetUID);
+            String loTargetUIDs = context.getConfiguration().get(sTargetUIDKey);
+            String[] loTargetUIDsp = loTargetUIDs.split(",");
+            obTargetUIDSet = new HashSet<>();
+            obKeyOut = new Text();
+            for (int i = 0; i < loTargetUIDsp.length; i++)
+            {
+                obTargetUIDSet.add(loTargetUIDsp[i]);
+            }
 
             String[] loLineOfData = value.toString().split("\\t");
             if (loLineOfData.length < 2)
@@ -92,55 +96,49 @@ public class MutualFriend
             String[] loFriendID = loFriends.split(",");
             int len = loFriendID.length;
 
-            // case 1: target user direct friend
-            if (loCurrentUID.equals(loTargetUID))
+            // case 1: target user is current user, set direct friend
+            if (obTargetUIDSet.contains(loCurrentUID))
             {
+                obKeyOut.set(loCurrentUID);
                 for (int i = 0; i < len; i++)
                 {
-                    CandidateFriend loCandidate = new CandidateFriend(loFriendID[i], sIsFriend);
+                    CandidateFriend loCandidate = new CandidateFriend(loFriendID[i], IS_FRIEND);
                     context.write(obKeyOut, loCandidate);
                 }
                 return;
             }
 
-            // case 2: current user and the friend list don't have target user, just discard
-            boolean hasTargetUID = false;
+            // check whether target users are in the friend list
+            Set<String> loCurrentTargetUIDSet = new HashSet<>();
             for (int i = 0; i < len; i++)
             {
-                if (loFriendID[i].equals(loTargetUID))
+                if (obTargetUIDSet.contains(loFriendID[i]))
                 {
-                    hasTargetUID = true;
-                    break;
+                    loCurrentTargetUIDSet.add(loFriendID[i]);
                 }
             }
-            if (!hasTargetUID)
+            // case 2: current user and friend list don't have target user, just discard
+            if (loCurrentTargetUIDSet.isEmpty())
             {
                 return;
             }
 
-            // case 3: emit target user and his candidate friend, mutual friend is current user
-            for (int i = 0; i < len; i++)
+            // case 3: target user is in friend list, emit target user and his candidate friend, mutual friend is current user
+            for (String lpTargetUID : loCurrentTargetUIDSet)
             {
-                if (!loFriendID[i].equals(loTargetUID))
+                obKeyOut.set(lpTargetUID);
+                for (int i = 0; i < len; i++)
                 {
-                    CandidateFriend loCandidate = new CandidateFriend(loFriendID[i], loCurrentUID);
-                    context.write(obKeyOut, loCandidate);
+                    if (!loFriendID[i].equals(lpTargetUID))
+                    {
+                        CandidateFriend loCandidate = new CandidateFriend(loFriendID[i], loCurrentUID);
+                        context.write(obKeyOut, loCandidate);
+                    }
                 }
             }
         }
     }
 
-//    public static class MyComparator implements RawComparator<CandidateFriend>
-//    {
-//        public int compare(CandidateFriend cand1, CandidateFriend cand2)
-//        {
-//            return 1;
-//        }
-//        public int compare(byte[] var1, int var2, int var3, byte[] var4, int var5, int var6)
-//        {
-//            return 1;
-//        }
-//    }
 
     public static class Reduce
             extends Reducer<Text, CandidateFriend, Text, Text> {
@@ -151,7 +149,6 @@ public class MutualFriend
         ) throws IOException, InterruptedException {
 
             java.util.Map<String, Integer> loUnsortedCandidates = new HashMap<>();
-
             for (CandidateFriend lpCandidateFriend : values)
             {
                 String loCandidate = lpCandidateFriend.getFriend();
@@ -163,7 +160,7 @@ public class MutualFriend
                     if (loCount == -1)
                     {
                         // ignore direct friend
-                        continue;
+                        ;
                     }
                     else
                     {
@@ -172,7 +169,7 @@ public class MutualFriend
                 }
                 else
                 {
-                    if (loMutualFriend.equals(sIsFriend))
+                    if (loMutualFriend.equals(IS_FRIEND))
                     {
                         loUnsortedCandidates.put(loCandidate, -1);
                     }
@@ -185,25 +182,37 @@ public class MutualFriend
 
 
             // sort the candidates by the count of mutual friends with target user
-            java.util.Map<Integer, String> loSortedCandidates = new TreeMap<>();
-            for (java.util.Map.Entry<String, Integer> entry : loUnsortedCandidates.entrySet())
-            {
-                loSortedCandidates.put(entry.getValue(), entry.getKey());
-            }
+            List<java.util.Map.Entry<String, Integer>> loSortedCandidatesList = new LinkedList<>(loUnsortedCandidates.entrySet());
+            Collections.sort(loSortedCandidatesList, new Comparator<java.util.Map.Entry<String, Integer>>() {
+                @Override
+                public int compare(java.util.Map.Entry<String, Integer> o1, java.util.Map.Entry<String, Integer> o2) {
+                    return - o1.getValue().compareTo(o2.getValue());        // descending by value
+                }
+            });
 
+            // output top 10 recommended friends
             int loTillTen = 0;
             StringBuilder loBuilder = new StringBuilder();
-            for (java.util.Map.Entry<Integer, String> entry : loSortedCandidates.entrySet())
+            for (java.util.Map.Entry<String, Integer> entry : loSortedCandidatesList)
             {
+                // direct friend
+                if (entry.getValue() == -1)
+                {
+                    break;
+                }
+
                 loBuilder.append(",");
-                loBuilder.append(entry.getValue());
+                loBuilder.append(entry.getKey());
                 loTillTen++;
                 if (loTillTen == 10)
                 {
                     break;
                 }
             }
-            loBuilder.deleteCharAt(0);
+            if (loBuilder.length() > 0)
+            {
+                loBuilder.deleteCharAt(0);
+            }
             obValueOut.set(loBuilder.toString());
 
             context.write(key, obValueOut);
@@ -216,13 +225,13 @@ public class MutualFriend
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
         // get all args
         if (otherArgs.length != 3) {
-            System.err.println("Usage: WordCount <in> <out> <user id>");
+            System.err.println("Usage: WordCount <in> <out> <user id,...>");
             System.exit(2);
         }
 
         // save target user id
-        String targetUID = otherArgs[2];
-        conf.set(sTargetUIDKey, targetUID);
+        String loTargetUIDs = otherArgs[2];
+        conf.set(sTargetUIDKey, loTargetUIDs);
 
         // create a job with name "wordcount"
         Job job = new Job(conf, "MutualFriend");
