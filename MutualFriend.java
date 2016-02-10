@@ -186,7 +186,15 @@ public class MutualFriend
             Collections.sort(loSortedCandidatesList, new Comparator<java.util.Map.Entry<String, Integer>>() {
                 @Override
                 public int compare(java.util.Map.Entry<String, Integer> o1, java.util.Map.Entry<String, Integer> o2) {
-                    return - o1.getValue().compareTo(o2.getValue());        // descending by value
+                    int cmp = - o1.getValue().compareTo(o2.getValue());        // descending by value
+                    if (cmp != 0)
+                    {
+                        return cmp;
+                    }
+                    else
+                    {
+                        return Integer.valueOf(o1.getKey()) - Integer.valueOf(o2.getKey());     // ascending by uid
+                    }
                 }
             });
 
