@@ -1,4 +1,5 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -17,7 +18,8 @@ import java.util.*;
  */
 public class MutualFriend
 {
-    private final static String sTargetUIDKey = "UID_KEY";
+    private final static String USAGE = "Usage: MutualFriend <in> <out> <user id,user id>";
+    protected final static String DRIVER_TO_MAPPER_KEY = "DRIVER_TO_MAPPER_KEY";
 
     public static class Map
             extends Mapper<LongWritable, Text, Text, Text>
@@ -27,15 +29,10 @@ public class MutualFriend
         public void map(LongWritable key, Text value, Context context
         ) throws IOException, InterruptedException
         {
-            // user don't have friend, do nothing
             String[] loLineOfData = value.toString().split("\\t");
-            if (loLineOfData.length < 2)
-            {
-                return;
-            }
 
             // prepare target user id
-            String loTargetUIDs = context.getConfiguration().get(sTargetUIDKey);
+            String loTargetUIDs = context.getConfiguration().get(DRIVER_TO_MAPPER_KEY);
             obTargetUIDSet = new HashSet<>();
             String[] loTargetUIDsp = loTargetUIDs.split(",");
             for (int i = 0; i < loTargetUIDsp.length; i++)
@@ -52,7 +49,8 @@ public class MutualFriend
 
             // emit data
             String loKeyOut = loTargetUIDsp[0] + "," + loTargetUIDsp[1];
-            context.write(new Text(loKeyOut), new Text(loLineOfData[1]));
+            String loValueOut = loLineOfData.length < 2 ? "" : loLineOfData[1];     // if user don't have friend, emit empty value
+            context.write(new Text(loKeyOut), new Text(loValueOut));
         }
     }
 
@@ -97,47 +95,71 @@ public class MutualFriend
         }
     }
 
-    // Driver program
-    public static void main(String[] args) throws Exception {
+    protected static String[] getOtherArgs(String[] args, int numOfOtherArgs) throws Exception
+    {
         Configuration conf = new Configuration();
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
         // get all args
-        if (otherArgs.length != 3) {
-            System.err.println("Usage: MutualFriend <in> <out> <user id,user id>");
+        if (otherArgs.length != numOfOtherArgs) {
+            System.err.println(USAGE);
             System.exit(2);
         }
 
         // save target user id
-        String loTargetUIDs = otherArgs[2];
+        String loTargetUIDs = otherArgs[numOfOtherArgs - 1];
         String[] loTargetUIDsp = loTargetUIDs.split(",");
         if (loTargetUIDsp.length != 2)
         {
-            System.err.println("Usage: MutualFriend <in> <out> <user id,user id>");
+            System.err.println(USAGE);
             System.exit(2);
         }
 
-        conf.set(sTargetUIDKey, loTargetUIDs);
+        return otherArgs;
+    }
 
-        // create a job with name "wordcount"
-        Job job = new Job(conf, "MutualFriend");
+    protected static Job setupJob(
+            Class<? extends Mapper> arMapClass,
+            Class<? extends Reducer> arReduceClass,
+            String inputPath,
+            String outputPath,
+            String arDriverToMapperVal)
+            throws Exception
+    {
+        Configuration conf = new Configuration();
+        // set argument
+        String loTargetUIDs = arDriverToMapperVal;
+        conf.set(DRIVER_TO_MAPPER_KEY, loTargetUIDs);
+
+        // reuse output folder
+        FileSystem loFS = FileSystem.get(new Configuration());
+        loFS.delete(new Path(outputPath), true);
+
+
+        // create a job with name CLASS_NAME
+        Job job = new Job(conf, "JOB");
         job.setJarByClass(MutualFriend.class);
-        job.setMapperClass(Map.class);
-        job.setReducerClass(Reduce.class);
-
-        // uncomment the following line to add the Combiner job.setCombinerClass(Reduce.class);
-
+        job.setMapperClass(arMapClass);
+        job.setReducerClass(arReduceClass);
 
         // set output key type
         job.setOutputKeyClass(Text.class);
         // set output value type
         job.setOutputValueClass(Text.class);
         //set the HDFS path of the input data
-        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileInputFormat.addInputPath(job, new Path(inputPath));
         // set the HDFS path for the output
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+        FileOutputFormat.setOutputPath(job, new Path(outputPath));
 
         //Wait till job completion
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        return job;
+    }
+
+    // Driver program
+    public static void main(String[] args) throws Exception {
+        String[] otherArgs = getOtherArgs(args, 3);
+        Job loJob = setupJob(Map.class, Reduce.class, otherArgs[0], otherArgs[1], otherArgs[2]);
+
+        System.exit(loJob.waitForCompletion(true) ? 0 : 1);
     }
 
 }

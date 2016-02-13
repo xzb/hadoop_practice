@@ -1,4 +1,5 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
@@ -240,6 +241,10 @@ public class RecommendFriend
         // save target user id
         String loTargetUIDs = otherArgs[2];
         conf.set(sTargetUIDKey, loTargetUIDs);
+
+        // reuse output folder
+        FileSystem loFS = FileSystem.get(new Configuration());
+        loFS.delete(new Path(otherArgs[1]), true);
 
         // create a job with name "wordcount"
         Job job = new Job(conf, "RecommendFriend");
