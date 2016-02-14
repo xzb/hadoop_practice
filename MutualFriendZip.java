@@ -115,7 +115,7 @@ public class MutualFriendZip extends MutualFriend
     // Driver program
     public static void main(String[] args) throws Exception
     {
-        String[] otherArgs = getOtherArgs(args, 4);
+        String[] otherArgs = getOtherArgs(args, 4, USAGE);
 
         // ==== EXEC first step =====================
         String loTargetUID = otherArgs[3];

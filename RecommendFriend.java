@@ -106,7 +106,7 @@ public class RecommendFriend
                     CandidateFriend loCandidate = new CandidateFriend(loFriendID[i], IS_FRIEND);
                     context.write(obKeyOut, loCandidate);
                 }
-                return;
+//                return;               // should finish remaining case 2/3
             }
 
             // check whether target users are in the friend list
@@ -162,6 +162,11 @@ public class RecommendFriend
                     {
                         // ignore direct friend
                         ;
+                    }
+                    else if (loMutualFriend.equals(IS_FRIEND))
+                    {
+                        // reset direct friend
+                        loUnsortedCandidates.put(loCandidate, -1);
                     }
                     else
                     {
