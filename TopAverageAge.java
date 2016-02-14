@@ -21,6 +21,7 @@ public class TopAverageAge extends MapReduceBase
     private final static String BEHIND_KEY = "1";
 
     private final static String CURRENT_YEAR = "2016";
+    private final static String CURRENT_MONTH = "2";
     private final static String AGE_TAG = "AGE_TAG";
     private final static String ADDRESS_TAG = "ADDRESS_TAG";
 
@@ -56,12 +57,13 @@ public class TopAverageAge extends MapReduceBase
             String loCurrentUID = loLineOfData[0];
             String loDateOfBirth = loLineOfData[9];
             String loAddress = loLineOfData[3] + ", " + loLineOfData[4] + ", " + loLineOfData[5];
-            Integer loAge = Integer.valueOf(CURRENT_YEAR) - Integer.valueOf(loDateOfBirth.split("/")[2]);
+            double loAge = Integer.valueOf(CURRENT_YEAR) - Integer.valueOf(loDateOfBirth.split("/")[2])
+                    + (Integer.valueOf(CURRENT_MONTH) - Integer.valueOf(loDateOfBirth.split("/")[0])) * 1.0 / 12;
 
             context.write(new TextPair(loCurrentUID, AHEAD_KEY),
                     new TextPair(ADDRESS_TAG, loAddress));
             context.write(new TextPair(loCurrentUID, AHEAD_KEY),
-                    new TextPair(AGE_TAG, "" + loAge));
+                    new TextPair(AGE_TAG, String.valueOf(loAge)));
         }
     }
     private static class JoinFriendAgeReducer
@@ -122,7 +124,7 @@ public class TopAverageAge extends MapReduceBase
         ) throws IOException, InterruptedException
         {
             String loAddress = "";
-            int loAgeSum = 0;
+            double loAgeSum = 0;
             int loCount = 0;
 
             for (Text loText : values)
@@ -138,7 +140,7 @@ public class TopAverageAge extends MapReduceBase
                 }
                 else
                 {
-                    loAgeSum += Integer.valueOf(loContent);
+                    loAgeSum += Double.valueOf(loContent);
                     loCount++;
                 }
             }
@@ -208,29 +210,6 @@ public class TopAverageAge extends MapReduceBase
         }
     }
 
-    // STEP 4: Join top 20 sorted result with address table, using in-memory join
-    private static class JoinUserMapper
-            extends Mapper<LongWritable, Text, TextPair, Text>
-    {
-        public void map(LongWritable key, Text value, Context context
-        ) throws IOException, InterruptedException
-        {}
-    }
-    private static class JoinAddressMapper
-            extends Mapper<LongWritable, Text, TextPair, Text>
-    {
-        public void map(LongWritable key, Text value, Context context
-        ) throws IOException, InterruptedException
-        {}
-    }
-    private static class JoinUserAddressReducer
-            extends Reducer<TextPair, Text, Text, Text>
-    {
-        public void reduce(TextPair key, Iterable<Text> values, Context context
-        ) throws IOException, InterruptedException
-        {}
-    }
-
 
     // Driver program
     public static void main(String[] args) throws Exception
@@ -287,25 +266,6 @@ public class TopAverageAge extends MapReduceBase
             System.exit(1);
         }
 
-        /*
-        // ==== STEP 4 =====================
-        if (loResult)
-        {
-            Job loJobStep2 = setupMultiInputJob(
-                    JoinFriendMapper.class,
-                    JoinAgeMapper.class,
-                    JoinFriendAgeReducer.class,
-                    TEMP_FOLDER,
-                    otherArgs[1],
-                    TEMP_FOLDER_ALTER,
-                    "");
-            loResult = loJobStep2.waitForCompletion(true);
-        }
-        else
-        {
-            System.exit(1);
-        }
-*/
         System.exit(loResult ? 0 : 1);
     }
 }
