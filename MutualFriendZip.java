@@ -49,8 +49,9 @@ public class MutualFriendZip extends MutualFriend
             }
 
             // emit data
+            String loFriendName = loLineOfData[1] + " " + loLineOfData[2];
             String loValueOut = loLineOfData[6];        // zip
-            context.write(new Text(obFriendPair), new Text(loCurrentUID + ":" + loValueOut));
+            context.write(new Text(obFriendPair), new Text(loFriendName + ":" + loValueOut));
         }
 
         protected void setup(Context context) throws IOException, InterruptedException
@@ -59,7 +60,7 @@ public class MutualFriendZip extends MutualFriend
 
             Configuration conf = context.getConfiguration();
             String loPathString = conf.get(DRIVER_TO_MAPPER_KEY);
-            Path loPath = new Path("hdfs://cshadoop1" + loPathString);  //Location of file in HDFS
+            Path loPath = new Path("hdfs://cshadoop1" + loPathString);  // Location of file in HDFS
 
             obMutualUIDSet = new HashSet<>();
 
