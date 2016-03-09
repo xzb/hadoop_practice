@@ -198,11 +198,16 @@ public class TopAverageAgeSingleKey extends MapReduceBase
     {
 //        protected SortByAgeDescending()
 //        {
-//            super();
+//            super(Text.class, true);
 //        }
         public int compare(WritableComparable w1, WritableComparable w2)
         {
             return - w1.compareTo(w2);
+
+//            String loAge1 = w1.toString();
+//            String loAge2 = w2.toString();
+//            double cmp = Double.valueOf(loAge2) - Double.valueOf(loAge1);
+//            return cmp > 0 ? 1 : (cmp < 0 ? -1 : 0);
         }
     }
 
@@ -255,7 +260,7 @@ public class TopAverageAgeSingleKey extends MapReduceBase
                     TEMP_FOLDER_ALTER,
                     otherArgs[2],
                     "");
-            loJobStepThree.setOutputKeyClass(Text.class);
+            loJobStepThree.setOutputKeyClass(Text.class);       //DoubleWritable ?
             loJobStepThree.setPartitionerClass(SinglePartitioner.class);
             loJobStepThree.setSortComparatorClass(SortByAgeDescending.class);
             loResult = loJobStepThree.waitForCompletion(true);
