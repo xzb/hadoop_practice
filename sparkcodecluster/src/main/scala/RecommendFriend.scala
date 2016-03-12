@@ -1,8 +1,13 @@
 /**
+ * Run Instruction:
+ *
+ *
+ **/
+
+/**
  * Created by xiezebin on 3/7/16.
  */
 
-package edu.utdallas.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
@@ -71,8 +76,8 @@ object RecommendFriend {
           rvMutualFriend += item
         }
       }
-    }
-    )
+    })
+
     rvMutualFriend.toArray
   }
 
@@ -91,7 +96,6 @@ object RecommendFriend {
         if (loCount == -1)
         {
           // ignore direct friend
-
         }
         else if (loMutualFriend.equals(IS_FRIEND))
         {
@@ -119,10 +123,10 @@ object RecommendFriend {
     // sort the candidates by the count of mutual friends with target user (no need)
     // output top 10 recommended friends (no need)
 
-    var loBuilder = new StringBuilder()
+    val loBuilder = new StringBuilder()
     loUnsortedCandidates.foreach(entry =>
     {
-      // direct friend
+      // not direct friend
       if (entry._2 != -1) {
         loBuilder.append(",")
         loBuilder.append(entry._1)
@@ -153,23 +157,14 @@ object RecommendFriend {
 
     val logData = sc.textFile(INPUT_DIR)
 
-    //    val loProcessResult = logData.flatMap(x => x.split(",")).map(x => (x, 1))
+
     val loMapProcessResult = logData.flatMap(line => mapProcess(line, targetUIDs.value))
     val loShuffleResult = loMapProcessResult.groupByKey()
     val loReduceProcessResult = loShuffleResult.map(reduceProcess)
 
-    val loCountMutual = loReduceProcessResult//.reduceByKey(_ + _)
-
-    val rvData = loCountMutual
-
-
-    //    val loList = loFriendAndList.collect()._1
-    //      .map(word => (word, 1))
-    //      .reduceByKey(_ + _)
-
 
     // need remove dir before output
-    rvData.saveAsTextFile(OUTPUT_DIR + "test")
+    loReduceProcessResult.saveAsTextFile(OUTPUT_DIR + "test")
   }
 }
 
