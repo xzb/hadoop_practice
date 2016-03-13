@@ -72,10 +72,10 @@ object MutualFriendZip {
 
 
     val loUserData = sc.textFile(INPUT_INFO_DIR)
-    val loMapProcessZipResult = loUserData.map(line => mapProcessZip(line, targetBc.value))
-    val loShuffleResult = loMapProcessZipResult.groupBy(line => args(0))
-//    val loFinalResult = loShuffleResult.map(reduceProcessZip)
-    val loFinalResult = loMapProcessZipResult
+    val loFilterResult = loUserData.filter(line => targetBc.value.contains(line.split(",")(0)))
+    val loFindZipResult = loFilterResult.map(line => mapProcessZip(line, targetBc.value))
+    val loShuffleResult = loFindZipResult.groupBy(line => args(0))
+    val loFinalResult = loShuffleResult.map(reduceProcessZip)
 
     loFinalResult.saveAsTextFile(OUTPUT_DIR + "test")
   }

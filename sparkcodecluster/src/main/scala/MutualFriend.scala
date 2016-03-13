@@ -33,7 +33,7 @@ object MutualFriend {
   def reduceProcess(args:(String, Iterable[String])): String = {
     var loFriendSet = Set[String]()
     val rvMutualList = new StringBuilder()
-    var loTargetPair = args._1
+    val loTargetPair = args._1
 
     args._2.foreach(line =>
       {
