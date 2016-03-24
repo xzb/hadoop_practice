@@ -1,11 +1,12 @@
+package MutualFriend
+
 /**
  * Created by xiezebin on 3/7/16.
  */
 
-import org.apache.spark.{SparkContext, SparkConf}
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.Breaks._
 
 object TopAverageAge {
 

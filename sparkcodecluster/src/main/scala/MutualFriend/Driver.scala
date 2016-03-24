@@ -1,9 +1,6 @@
-package edu.utdallas.spark
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
+package MutualFriend
 
-import java.util.Properties
+import org.apache.spark.{SparkConf, SparkContext}
 
 object Driver {
   val INPUT_DIR = "hdfs://cshadoop1/zxx140430/input/"

@@ -1,8 +1,10 @@
+package MutualFriend
+
 /**
  * Created by xiezebin on 3/7/16.
  */
 
-import org.apache.spark.{SparkContext, SparkConf}
+import org.apache.spark.{SparkConf, SparkContext}
 
 object MutualFriend {
 

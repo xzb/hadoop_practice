@@ -1,3 +1,5 @@
+package MutualFriend
+
 /**
  * Run Instruction:
  *
@@ -8,10 +10,7 @@
  * Created by xiezebin on 3/7/16.
  */
 
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
-
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -39,7 +38,6 @@ object RecommendFriend {
 
     var loTargetUIDSet = Set[String]()
     targetUIDs.split(",").foreach(uid => loTargetUIDSet += uid)
-
 
     // case 1: target user is current user, set direct friend
     if (loTargetUIDSet.contains(loCurrentUID))
