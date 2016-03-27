@@ -1,4 +1,4 @@
-package KMeans
+package MLlibTest
 
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.mllib.clustering.{KMeans, KMeansModel}
@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * Created by xiezebin on 3/23/16.
  */
-object Driver {
+object KMeansDr {
 
   val RATING_FILE = "hdfs://cshadoop1/zxx140430/input/kmeans/ratings.dat"
   val USER_FILE = "hdfs://cshadoop1/zxx140430/input/kmeans/users.dat"
@@ -80,6 +80,7 @@ object Driver {
       }
     }
 
+
     //**** join the movie information ****
     val movieIDSetBc = sc.broadcast(movieIDSet)
     val movieRaw = sc.textFile(MOVIE_FILE)
@@ -96,6 +97,7 @@ object Driver {
         selectedMoviesMap += (mid -> line.replaceAll("::", ","))
       })
 
+    
     //**** print results ****
     for (i <- 0 until clusterSamples.length)
     {
