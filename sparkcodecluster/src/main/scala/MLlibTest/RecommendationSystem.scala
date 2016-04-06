@@ -55,13 +55,18 @@ val ratingByUser = sc.broadcast(ratings.map(x => (x._1,(x._2,x._3))))
 
 
 
+/**
+ * after groupby user_id, single user latent times each of rating of that user_id column
+ * @param args
+ * @return
+ */
 def oneLatentTimesRatings(args:(String, (Iterable[(String, String)], Iterable[DenseVector[Double]])))
-: Array[(String, DenseVector[Double])] = {
+: Array[(String, (DenseMatrix[Double], DenseVector[Double]))] = {
   val userId = args._1
   val userLatent = args._2._2.head
   val ratingVector = args._2._1
 
-  var rv = new ArrayBuffer[(String, DenseVector[Double])]()
+  var rv = new ArrayBuffer[(String, (DenseMatrix[Double], DenseVector[Double]))]()
 
   ratingVector.foreach(itemIdRatePair => {
     val itemId = itemIdRatePair._1
@@ -69,46 +74,13 @@ def oneLatentTimesRatings(args:(String, (Iterable[(String, String)], Iterable[De
 
     val timesResult = singleRate * userLatent
 
-    rv += ((itemId, timesResult))
+    rv += ((itemId, (userLatent * userLatent.t, timesResult)))
   })
 
   rv.toArray
 }
 
-/**
- * reduce by adding the value of same item id
- */
-/*
-def reduceLatents(arg1:(Array[(String, DenseVector[Double])]),
-                  arg2:(Array[(String, DenseVector[Double])]))
-: Array[(String, DenseVector[Double])] = {
 
-  var rv = new ArrayBuffer[(String, DenseVector[Double])]()
-
-  var itemIdMap = Map[String, DenseVector[Double]]()
-  arg2.foreach(tuple => {
-    itemIdMap += (tuple._1 -> tuple._2)
-  })
-
-  arg1.foreach(tuple => {
-    val itemId = tuple._1
-    val vector = tuple._2
-    if (itemIdMap.contains(itemId)) {
-      itemIdMap += (itemId -> (vector + itemIdMap(itemId)))
-    }
-    else {
-      itemIdMap += (tuple._1 -> tuple._2)
-    }
-  })
-
-  itemIdMap.foreach(tuple => {
-    val itemId = tuple._1
-    val vector = tuple._2
-    rv += ((itemId, vector))
-  })
-  rv.toArray
-}
-*/
 
 // regularization factor which is lambda.
 val regfactor = 1.0
@@ -120,6 +92,7 @@ regMatrix(2,::) := DenseVector(0,0,regfactor,0,0).t
 regMatrix(3,::) := DenseVector(0,0,0,regfactor,0).t
 regMatrix(4,::) := DenseVector(0,0,0,0,regfactor).t
 
+val regMatrixBC = sc.broadcast(regMatrix)
 
 
 for( i <- 1 to 10){
@@ -129,44 +102,34 @@ for( i <- 1 to 10){
   //Please Fill in your code here.
 
   // *** update item latent ***
-  // 1. calculate (sum_i(user_i * user_i^T) + I) ^ -1
-  val userDiag = inv(
-    myuserMatrix.map(userLatentPair => {
-      val userLatent = userLatentPair._2
-      userLatent * userLatent.t
-    }).
-      reduce(_ + _) + regfactor * regMatrix
-  )
-  val userDiagBC = sc.broadcast(userDiag)
-
   myitemMatrix =
     ratingByUser.value.cogroup(myuserMatrix).
       flatMap(oneLatentTimesRatings).
-      reduceByKey(_ + _).
+      reduceByKey((res1, res2) => {
+        ((res1._1 + res2._1), (res1._2 + res2._2))
+      }).
       map(tuple => {
-        (tuple._1, userDiagBC.value * tuple._2)
-      })
-//  myitemMatrix = sc.parallelize(myitemMatrixLocal).persist
+        val itemId = tuple._1
+        val sumMatrix = inv(tuple._2._1 + regMatrixBC.value)
+        val sumVector = tuple._2._2
+        (itemId, sumMatrix * sumVector)
+      }).
+      persist
 
   // *** update user latent ***
-  // 2. calculate (sum_i(item_i * item_i^T) + I) ^ -1
-  val itemDiag = inv(
-    myitemMatrix.map(itemLatentPair => {
-      val itemLatent = itemLatentPair._2
-      itemLatent * itemLatent.t
-    }).
-      reduce(_ + _) + regfactor * regMatrix
-  )
-  val itemDiagBC = sc.broadcast(itemDiag)
-
   myuserMatrix =
     ratingByItem.value.cogroup(myitemMatrix).
       flatMap(oneLatentTimesRatings).
-      reduceByKey(_ + _).
+      reduceByKey((res1, res2) => {
+        ((res1._1 + res2._1), (res1._2 + res2._2))
+      }).
       map(tuple => {
-        (tuple._1, itemDiagBC.value * tuple._2)
-      })
-//  myuserMatrix = sc.parallelize(myuserMatrixLocal).persist
+        val userId = tuple._1
+        val sumMatrix = inv(tuple._2._1 + regMatrixBC.value)
+        val sumVector = tuple._2._2
+        (userId, sumMatrix * sumVector)
+      }).
+      persist
 
 }
 //==========================================End of update latent factors=================================================================
