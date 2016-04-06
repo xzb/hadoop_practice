@@ -78,6 +78,7 @@ def oneLatentTimesRatings(args:(String, (Iterable[(String, String)], Iterable[De
 /**
  * reduce by adding the value of same item id
  */
+/*
 def reduceLatents(arg1:(Array[(String, DenseVector[Double])]),
                   arg2:(Array[(String, DenseVector[Double])]))
 : Array[(String, DenseVector[Double])] = {
@@ -107,7 +108,7 @@ def reduceLatents(arg1:(Array[(String, DenseVector[Double])]),
   })
   rv.toArray
 }
-
+*/
 
 // regularization factor which is lambda.
 val regfactor = 1.0
@@ -138,14 +139,14 @@ for( i <- 1 to 10){
   )
   val userDiagBC = sc.broadcast(userDiag)
 
-  val myitemMatrixLocal =
+  myitemMatrix =
     ratingByUser.value.cogroup(myuserMatrix).
-      map(oneLatentTimesRatings).
-      reduce(reduceLatents).
+      flatMap(oneLatentTimesRatings).
+      reduceByKey(_ + _).
       map(tuple => {
         (tuple._1, userDiagBC.value * tuple._2)
       })
-  myitemMatrix = sc.parallelize(myitemMatrixLocal).persist
+//  myitemMatrix = sc.parallelize(myitemMatrixLocal).persist
 
   // *** update user latent ***
   // 2. calculate (sum_i(item_i * item_i^T) + I) ^ -1
@@ -158,14 +159,14 @@ for( i <- 1 to 10){
   )
   val itemDiagBC = sc.broadcast(itemDiag)
 
-  val myuserMatrixLocal =
+  myuserMatrix =
     ratingByItem.value.cogroup(myitemMatrix).
-      map(oneLatentTimesRatings).
-      reduce(reduceLatents).
+      flatMap(oneLatentTimesRatings).
+      reduceByKey(_ + _).
       map(tuple => {
         (tuple._1, itemDiagBC.value * tuple._2)
       })
-  myuserMatrix = sc.parallelize(myuserMatrixLocal).persist
+//  myuserMatrix = sc.parallelize(myuserMatrixLocal).persist
 
 }
 //==========================================End of update latent factors=================================================================
