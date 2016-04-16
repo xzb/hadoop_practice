@@ -2,10 +2,10 @@ MovieFile = LOAD '/Spring-2016-input/movies.dat' using PigStorage(':') as (Movie
 RatingFile = LOAD '/Spring-2016-input/ratings.dat' using PigStorage(':') as (UserID:int, MovieID:int, Rating:int, Timestamp:chararray);
 UserFile = LOAD '/Spring-2016-input/users.dat' using PigStorage(':') as (UserID:int, Gender:chararray, Age:int, Occupation:int, Zipcode:chararray);
 
-feasibleUser = filter UserFile by Gender == 'M' and Age > 20 and Age < 40 and Zipcode matches '7.*';
+feasibleUser = filter UserFile by Gender == 'F' and Age > 20 and Age < 35 and Zipcode matches '1.*';
 
 --find lowest rating comedy & drama
-ComedyDrama = filter MovieFile by Genres matches '.*Comedy.*' and Genres matches '.*Drama.*';
+ComedyDrama = filter MovieFile by Genres matches '.*Action.*' and Genres matches '.*War.*';
 
 RatingsCD = join RatingFile by MovieID, ComedyDrama by MovieID;
 
@@ -17,11 +17,14 @@ lowestRate = foreach (group averageRating all) generate MIN(averageRating.Rating
 feasibleMovie = filter averageRating by Rating == lowestRate.rate;
 
 --
---(4486,133,1,965013057,133,1.0)
---(1470,1115,1,974915361,1115,1.0)
 userWhoRated = foreach (join RatingFile by MovieID, feasibleMovie by MovieID) generate RatingFile::UserID as UserID;
 resultUserID = foreach (join userWhoRated by UserID, feasibleUser by UserID) generate feasibleUser::UserID as UserID;
 dump resultUserID
+
+--(673)
+--(1010)
+--(1835)
+--(2931)
 
 
 --############# Ques 2 ##################
@@ -31,5 +34,5 @@ dump limitRes
 
 
 --############# Ques 3 ##################
-
-FORMAT_GENRE
+register /home/010/z/zx/zxx140430/PIG_UDF/pig_udf.jar;
+formatResult = foreach MovieFile generate Title, FORMAT_GENRE(Genres);
