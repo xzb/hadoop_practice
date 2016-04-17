@@ -4,10 +4,10 @@ UserFile = LOAD '/Spring-2016-input/users.dat' using PigStorage(':') as (UserID:
 
 feasibleUser = filter UserFile by Gender == 'F' and Age > 20 and Age < 35 and Zipcode matches '1.*';
 
---find lowest rating comedy & drama
-ComedyDrama = filter MovieFile by Genres matches '.*Action.*' and Genres matches '.*War.*';
+--find lowest rating action & war movies
+ActionWar = filter MovieFile by Genres matches '.*Action.*' and Genres matches '.*War.*';
 
-RatingsCD = join RatingFile by MovieID, ComedyDrama by MovieID;
+RatingsCD = join RatingFile by MovieID, ActionWar by MovieID;
 
 averageRating = foreach (group RatingsCD by RatingFile::MovieID)
     generate group as MovieID, AVG(RatingsCD.Rating) as Rating;
@@ -28,11 +28,21 @@ dump resultUserID
 
 
 --############# Ques 2 ##################
-groupRes = cogroup RatingFile by MovieID, MovieFile by MovieID;
-limitRes = limit groupRes 5;
-dump limitRes
+MovieFile = LOAD '/Spring-2016-input/movies.dat' using PigStorage(':') as (MovieID:int, Title:chararray, Genres:chararray);
+RatingFile = LOAD '/Spring-2016-input/ratings.dat' using PigStorage(':') as (UserID:int, MovieID:int, Rating:int, Timestamp:chararray);
+
+groupMovieFile = group MovieFile by MovieID;
+groupRatingFile = group RatingFile by MovieID;
+joinResult = join groupMovieFile by group, groupRatingFile by group;
+formatAsCogroup = foreach joinResult generate groupMovieFile::group as groupID,
+                                                groupRatingFile::RatingFile as RatingFile,
+                                                groupMovieFile::MovieFile as MovieFile;
+limitResult = limit formatAsCogroup 5;
+dump limitResult
+
 
 
 --############# Ques 3 ##################
 register /home/010/z/zx/zxx140430/PIG_UDF/pig_udf.jar;
+MovieFile = LOAD '/Spring-2016-input/movies.dat' using PigStorage(':') as (MovieID:int, Title:chararray, Genres:chararray);
 formatResult = foreach MovieFile generate Title, FORMAT_GENRE(Genres);
